@@ -65,6 +65,15 @@ python3 -m http.server 8765
 
 零依赖：不需要 npm / 构建工具。Leaflet 与 ECharts 已本地化于 `assets/vendor/`。
 
+## Demo 部署
+
+GitHub Pages 已启用 HTTPS，发布来源为 **`main` 分支的根目录 `/`**。
+推送 `main` 后由 Pages 自动部署；`.nojekyll` 让现有静态文件直接发布，无需 npm 或应用构建。
+可以在仓库 **Settings → Pages** 查看部署状态。
+
+`corpus/`、EPUB、凭据及本地 Agent 工作文件不进入仓库，也不发布到 Demo。
+本地文件版与线上 Demo 的浏览器笔记存储相互隔离；迁移笔记请使用 JSON 导出/导入。
+
 ## 数据规模
 
 <!-- 数字由 `node scripts/stats.js` 产出，改数据后请同步 -->
