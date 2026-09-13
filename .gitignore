@@ -1,0 +1,17 @@
+# 本地语料：底本 epub 与逐章正文，永不提交（版权保护期内）
+corpus/
+
+# 生产产物的缓存
+__pycache__/
+*.pyc
+.DS_Store
+
+# 本地凭据、部署缓存和 Agent 工作文件不公开
+.env
+.env.*
+.vercel/
+*.pem
+*.key
+*.epub
+/AGENTS.md
+/PLAN.md
