@@ -407,6 +407,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnGuide").onclick = () => showGuide(0);
   document.getElementById("btnThemes").onclick = showThemesIndex;
   document.getElementById("btnChars").onclick = showCharacterIndex;
+  document.getElementById("btnBackground").onclick = showBackground;
 
   initReadToolbar();
   RelationsView.init();
@@ -476,4 +477,53 @@ function showThemesIndex() {
       </li>`).join("")}
     </ul></div>
     <div class="modal-actions"><button class="btn-ghost" onclick="closeModal()">关闭</button></div>`);
+}
+
+/* ============ 时代背景 ============ */
+function showBackground() {
+  openModal(`
+    <article class="era-background" aria-labelledby="eraTitle">
+      <div class="era-heading">
+        <h2 id="eraTitle" tabindex="-1">时代背景</h2>
+        <button class="btn-ghost" onclick="closeModal()" aria-label="关闭时代背景">关闭</button>
+      </div>
+      <p class="era-period">${esc(ERA_BACKGROUND.period)}</p>
+      <p>${esc(ERA_BACKGROUND.intro)}</p>
+      <p class="era-reading">${esc(ERA_BACKGROUND.framing)}</p>
+      <section class="detail-section era-topics">
+        <h3>五个阅读前的小问题 · 点击展开</h3>
+        ${ERA_BACKGROUND.topics.map((t, i) => `
+          <details${i === 0 ? " open" : ""}>
+            <summary>${esc(t.title)}</summary>
+            <p>${esc(t.text)}</p>
+            <p class="era-reading"><b>阅读提示：</b>${esc(t.reading)}</p>
+          </details>`).join("")}
+      </section>
+      <section class="detail-section">
+        <h3>一条简短年表</h3>
+        <p>点击年份，可回到关系图查看这一年的小说人物关系。</p>
+        <ul class="era-years">
+          ${ERA_BACKGROUND.timeline.map(t => `<li>
+            <button class="btn-ghost" aria-label="查看${t.year}年人物关系"
+              onclick="closeModal();switchView('relations');RelationsView.setYear(${t.year})">${t.year}</button>
+            <b>${esc(t.title)}</b>
+            <p>${esc(t.text)}</p>
+          </li>`).join("")}
+        </ul>
+      </section>
+      <section class="detail-section">
+        <h3>小说的视角，不是历史定论</h3>
+        <p>${esc(ERA_BACKGROUND.perspective)}</p>
+      </section>
+      <details class="detail-section">
+        <summary>资料来源 · 外部页面可能包含剧透</summary>
+        <ul class="era-sources">
+          ${ERA_BACKGROUND.sources.map(s => `<li><a href="${esc(s.url)}"
+            target="_blank" rel="noopener noreferrer">${esc(s.title)}</a></li>`).join("")}
+        </ul>
+      </details>
+      <div class="modal-actions"><button class="btn-ghost" onclick="closeModal()">关闭</button></div>
+    </article>`);
+  document.getElementById("modalBody").scrollTop = 0;
+  document.getElementById("eraTitle").focus();
 }

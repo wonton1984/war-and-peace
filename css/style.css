@@ -360,6 +360,21 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; }
 .modal b { color: var(--silver); }
 .modal .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
 
+/* ============ 时代背景 ============ */
+.era-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.era-heading h2 { margin-bottom:0; }
+.era-background .era-period { color:var(--gold-soft); font-size:12px; }
+.era-reading { border-left:2px solid var(--gold-dim); padding-left:12px; }
+.era-background details { border-bottom:1px solid var(--silver-faint); padding:10px 0; }
+.era-background summary { color:var(--silver); font-size:13px; line-height:1.8; cursor:pointer; }
+.era-background details p { margin-top:10px; }
+.era-background summary:focus-visible { outline:2px solid var(--gold-dim); outline-offset:3px; }
+.era-years li { padding:10px 0; }
+.era-years .btn-ghost { margin-right:8px; }
+.era-years p { margin-top:8px; }
+.era-sources { margin-top:10px; }
+.era-sources a { color:var(--gold-soft); text-decoration:underline; overflow-wrap:anywhere; }
+
 /* 人物卡弹层 */
 .pc-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
 .pc-badge {
