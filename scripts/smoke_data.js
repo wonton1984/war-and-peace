@@ -10,12 +10,17 @@ const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
 const ORDER = ["structure", "places", "characters", "families", "relations",
-  "themes", "arcs", "battles", "routes", "glossary", "names", "chapters", "events"];
+  "themes", "background", "arcs", "battles", "routes", "glossary", "names", "chapters", "events"];
+const page = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+const pageOrder = [...page.matchAll(/<script\b[^>]*\bsrc=["']data\/([^"'?]+)\.js(?:\?[^"']*)?["']/g)]
+  .map(match => match[1]);
+if (JSON.stringify(pageOrder) !== JSON.stringify(ORDER))
+  throw new Error("数据装载清单与 index.html 不一致，请同步门禁清单");
 
 const code = ORDER.map(f => fs.readFileSync(path.join(ROOT, "data", f + ".js"), "utf8")).join("\n");
 const names = ["STRUCTURE", "ALL_CHAPTERS", "TOTAL_CHAPTERS", "PART_TITLES", "PLACES",
   "CHARACTERS", "FAMILIES", "RELATIONS", "THEMES", "ARCS", "BATTLES", "ROUTES",
-  "GLOSSARY", "NAMES", "CHAPTERS", "EVENTS"];
+  "GLOSSARY", "NAMES", "CHAPTERS", "EVENTS", "ERA_BACKGROUND"];
 
 const out = {};
 const decl = names.map(n => `try{ out[${JSON.stringify(n)}]=${n}; }catch(e){}`).join("\n");
@@ -24,12 +29,12 @@ new Function("out", `"use strict";\n${code}\n${decl}`)(out);
 const expect = {
   TOTAL_CHAPTERS: 361, PLACES: null, CHARACTERS: null, RELATIONS: null,
   CHAPTERS: 361, EVENTS: null, THEMES: 6, ARCS: 8, BATTLES: 5, ROUTES: 7,
-  GLOSSARY: null, FAMILIES: 5, STRUCTURE: 5,
+  GLOSSARY: null, FAMILIES: 5, STRUCTURE: 5, ERA_BACKGROUND: null,
 };
 let fail = 0;
 const line = (k, v, want) => {
   const got = Array.isArray(v) ? v.length : (v && typeof v === "object" ? Object.keys(v).length : v);
-  const ok = want === null || got === want;
+  const ok = v != null && (want === null || got === want);
   if (!ok) fail++;
   console.log(`  ${ok ? "✓" : "✗"} ${k.padEnd(16)} ${got}${want !== null ? " (期望 " + want + ")" : ""}`);
 };

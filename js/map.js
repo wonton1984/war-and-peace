@@ -49,10 +49,7 @@ const MapView = (() => {
     layers.places.clearLayers();
     Object.entries(PLACES).forEach(([name, p]) => {
       const color = CAMP[p.kind] || CAMP.other;
-      // 常显地名只给庄园与五大会战；其余地点用悬停/弹层查看，
-      // 否则中欧一带 20 个常显标注会互相压叠。
-      // 常显标注只留互不贴近的四个关键地标（两座庄园 + 两大会战），
-      // 其余地点靠悬停查看：常显过多会在中欧一带堆叠成一团。
+      // 仅让以下四处地标常显；其余地点靠悬停查看，避免中欧标注堆叠。
       const MAJOR = ["鲍罗金诺", "奥斯特里茨", "别列津纳", "童山"];
       const big = MAJOR.indexOf(name) >= 0;
       const m = L.circleMarker([p.lat, p.lng], {
@@ -224,7 +221,7 @@ const MapView = (() => {
       <h3 style="margin-top:18px">地点（${Object.keys(PLACES).length}）</h3>
       <div style="font-size:11.5px;color:#8b99a8;line-height:2">
         ${Object.entries(PLACES).map(([k, v]) =>
-          `<div style="cursor:pointer" onclick="MapView.focus('${esc(k)}')">
+          `<div style="cursor:pointer" onclick="MapView.focus(${jsArg(k)})">
             <span style="color:${CAMP[v.kind] || CAMP.other}">●</span> ${esc(k)}
             <span style="color:#5d6b7c;font-size:10.5px">　${esc((v.modern || "").slice(0, 18))}</span>
           </div>`).join("")}
@@ -264,7 +261,7 @@ const MapView = (() => {
           <div style="font-size:11.5px;margin-top:3px">${esc(p.desc)}</div></li>`).join("")}
       </ul></div>
       <div class="detail-section"><h4>出场人物</h4>
-        ${(b.chars || []).map(c => `<span class="rel-chip" onclick="closeModal();showCharacterCard('${c}')">
+        ${(b.chars || []).map(c => `<span class="rel-chip" onclick="closeModal();showCharacterCard(${jsArg(c)})">
           <span style="color:${factionColor((charById(c) || {}).faction)}">●</span> ${esc(charName(c))}</span>`).join("")}
       </div>
       <div class="modal-actions"><button class="btn-ghost" onclick="closeModal()">关闭</button></div>`);

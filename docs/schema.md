@@ -197,6 +197,20 @@ const STRUCTURE = [
 // kind 受控：rank（军衔）| title（贵族称谓）| term（术语）| order（团体）
 ```
 
+### 10.1 时代背景（background.js）
+
+`ERA_BACKGROUND` 为对象，以下字段必填：
+
+- `period`：非空字符串，≤80 字；`intro` / `framing` / `perspective`：非空字符串，各≤140 字。
+- `topics`：非空对象数组，每项含 `title` / `text` / `reading`。
+- `timeline`：非空对象数组，每项含 `year` / `title` / `text`；
+  `year` 必须为 1805–1820 范围内的整数，严格递增，点击后联动关系图年份。
+- `sources`：非空对象数组，每项含 `title` / `url`，`url` 必须是有效的 HTTPS 网址；
+  门禁只检查网址格式，不证明外部页面可达或内容可靠。
+- 各项 `title` 为非空字符串，≤80 字；`text` / `reading` 为非空字符串，各≤140 字。
+  这些长度复用 `data_limits.js` 的 `desc` / `summary` 上限，不另设常量。
+- 全部内容也进入递归版权检查。错误数据必须在发布前修正，不在前端用空数组伪装为正常内容。
+
 ## 11. lint 规则摘要（scripts/lint_data.js）
 
 1. **引用完整性**：chapters.chars / events.ch / events.chars / events.place / events.theme /
@@ -204,8 +218,14 @@ const STRUCTURE = [
 2. **词表**：§7–§10 全部受控值越界即报错；
 3. **结构调整**：`structure.js` 必须为 17 部 361 章；
 4. **章节覆盖**：`chapters.js` 必须覆盖全部 361 个 id（Phase 1 起启用）；
-5. **版权门禁**：`gist`>60、`summary`>140、`bio`>80、`history`>120、`desc`>80 报错；
-   引号包裹片段 >20 字报错；出现 `quote` 字段直接报错；
+5. **文本与版权门禁**：递归检查全部已登记数据的字符串值与对象键，包含嵌套数组、
+   地点字典及时代背景；任何层级出现 `quote` 字段均报错。
+   所有同名字段统一执行 `gist`≤60、`summary`≤140、`bio`≤80、`history`≤120、`desc`≤80，
+   上限以 `scripts/data_limits.js` 为单一事实源；其他字段不会自动套用 `desc` 上限。
+   识别成对的 `「」`、`“”`、`『』`、`‘’` 和 ASCII 双引号，内部超过20个 Unicode 字符即报错，
+   不设原来的200字符匹配截断；这不是译文相似度检测，也不替代人工版权审查。
+   成功标记只在对应检查没有错误时输出。网页新增未登记的数据文件会使 lint 失败，
+   数据装载顺序与 `index.html` 不一致会使 smoke 失败；
 6. **别名查重**：`aliases` 跨人物不得重复；
 7. **关系约束**：`a`≠`b`；`(a,b)` 唯一；phases 按年升序且落在 from/to 内；
 8. **事件日期**：month 为 1–12 的整数；非空 day 必须为有效日数且有 month。粗粒度的同年同月可包含多地活动，不作为冲突判据；

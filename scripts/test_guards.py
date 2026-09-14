@@ -18,6 +18,7 @@ class GuardRegressions(unittest.TestCase):
         self.root = pathlib.Path(self.tmp.name)
         shutil.copytree(ROOT / "scripts", self.root / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
         shutil.copytree(ROOT / "data", self.root / "data", ignore=shutil.ignore_patterns("proposals"))
+        shutil.copy2(ROOT / "index.html", self.root / "index.html")
 
     def run_script(self, name):
         executable = "node" if name.endswith(".js") else "python3"
@@ -55,6 +56,65 @@ class GuardRegressions(unittest.TestCase):
         for name in ["check_gists.py", "check_names.py"]:
             result = self.run_script(name)
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+
+    def test_background_missing_or_invalid_is_rejected(self):
+        original = (self.root / "data/background.js").read_text()
+        for mutation in [
+            "delete rows.topics",
+            "rows.timeline={}",
+            "rows.sources=[null]",
+            "rows.topics[0].reading=''",
+            "rows.timeline[0].year=1804",
+            "rows.timeline[0].year='1805'",
+            "rows.sources[0].url='javascript:alert(1)'",
+        ]:
+            with self.subTest(mutation=mutation):
+                (self.root / "data/background.js").write_text(original)
+                self.mutate_data("background.js", "ERA_BACKGROUND", mutation)
+                result = self.run_script("lint_data.js")
+                self.assertNotEqual(result.returncode, 0, mutation)
+                self.assertIn("ERA_BACKGROUND", result.stdout + result.stderr)
+        (self.root / "data/background.js").unlink()
+        for name in ["lint_data.js", "smoke_data.js"]:
+            self.assertNotEqual(self.run_script(name).returncode, 0, name)
+        (self.root / "data/background.js").write_text("const UNDECLARED_BACKGROUND = {};")
+        self.assertNotEqual(self.run_script("smoke_data.js").returncode, 0,
+                            "smoke accepted a missing ERA_BACKGROUND symbol")
+
+    def test_unregistered_page_data_dependency_is_rejected(self):
+        (self.root / "data/audit-extra.js").write_text("const AUDIT_EXTRA = {};")
+        page = self.root / "index.html"
+        page.write_text(page.read_text().replace(
+            "</body>", '<script src="data/audit-extra.js?v=1"></script></body>'))
+        for name in ["lint_data.js", "smoke_data.js"]:
+            result = self.run_script(name)
+            self.assertNotEqual(result.returncode, 0, name + " skipped a page dependency")
+
+    def test_nested_copyright_and_description_limits_are_enforced(self):
+        cases = [
+            ("background.js", "ERA_BACKGROUND", "rows.topics[0].text='“'+'文'.repeat(201)+'”'"),
+            ("events.js", "EVENTS", "rows[0].history='「'+'文'.repeat(21)+'」'"),
+            ("relations.js", "RELATIONS", "rows[0].phases[0].quote='禁止收录'"),
+            ("battles.js", "BATTLES", "rows[0].phase[0].desc='文'.repeat(81)"),
+            ("places.js", "PLACES", "Object.values(rows)[0].note='『'+'文'.repeat(21)+'』'"),
+        ]
+        for filename, symbol, mutation in cases:
+            with self.subTest(filename=filename):
+                original = (self.root / "data" / filename).read_text()
+                self.mutate_data(filename, symbol, mutation)
+                result = self.run_script("lint_data.js")
+                (self.root / "data" / filename).write_text(original)
+                self.assertNotEqual(result.returncode, 0, mutation)
+                self.assertNotIn("无 quote 字段、无超长引文", result.stdout)
+
+    def test_copyright_boundary_counts_unicode_characters(self):
+        self.mutate_data("background.js", "ERA_BACKGROUND",
+                         "rows.topics[0].text='“'+String.fromCodePoint(0x20000).repeat(20)+'”'")
+        result = self.run_script("lint_data.js")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.mutate_data("background.js", "ERA_BACKGROUND",
+                         "rows.topics[0].text='“'+String.fromCodePoint(0x20000).repeat(21)+'”'")
+        self.assertNotEqual(self.run_script("lint_data.js").returncode, 0)
 
 
 class PresenceRegressions(unittest.TestCase):

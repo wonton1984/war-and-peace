@@ -26,12 +26,19 @@ const note = m => { warns.push(m); console.log("  \u26a0 " + m); };
 function loadSandbox() {
   const files = ["structure.js", "characters.js", "places.js", "relations.js",
     "chapters.js", "events.js", "families.js", "themes.js", "arcs.js",
-    "battles.js", "routes.js", "glossary.js", "names.js"];
+    "battles.js", "routes.js", "glossary.js", "names.js", "background.js"];
+  const page = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  for (const [, file] of page.matchAll(/<script\b[^>]*\bsrc=["']data\/([^"'?]+)(?:\?[^"']*)?["']/g)) {
+    if (!files.includes(file)) bad(`网页数据文件 ${file} 未纳入门禁`);
+  }
+  for (const file of files) {
+    if (!fs.existsSync(path.join(DATA, file))) bad(`缺少数据文件 ${file}`);
+  }
   const present = files.filter(f => fs.existsSync(path.join(DATA, f)));
   const code = present.map(f => fs.readFileSync(path.join(DATA, f), "utf8")).join("\n");
   const exportNames = ["STRUCTURE", "PART_TITLES", "ALL_CHAPTERS", "TOTAL_CHAPTERS",
     "CHARACTERS", "PLACES", "RELATIONS", "CHAPTERS", "EVENTS", "FAMILIES",
-    "THEMES", "ARCS", "BATTLES", "ROUTES", "GLOSSARY", "NAMES"];
+    "THEMES", "ARCS", "BATTLES", "ROUTES", "GLOSSARY", "NAMES", "ERA_BACKGROUND"];
   const decl = exportNames.map(n => `try{ out.${n}=${n}; }catch(e){}`).join("\n");
   const out = {};
   new Function("out", `"use strict";\n${code}\n${decl}`)(out);
@@ -44,7 +51,7 @@ const {
   ALL_CHAPTERS = [], TOTAL_CHAPTERS = 0,
   CHARACTERS = [], PLACES = {}, RELATIONS = [], CHAPTERS = [],
   EVENTS = [], FAMILIES = [], THEMES = [], ARCS = [], BATTLES = [],
-  ROUTES = [], GLOSSARY = [], NAMES = [],
+  ROUTES = [], GLOSSARY = [], NAMES = [], ERA_BACKGROUND,
 } = S;
 
 /* ---------- 引用全集（跨表校验用） ---------- */
@@ -74,10 +81,10 @@ console.log(`  已载入数据文件 ${S.__present.length} 个：${S.__present.j
 
 /* ---------- 工具 ---------- */
 const quoteSpan = s => {
-  if (typeof s !== "string") return 0;
   let mx = 0;
-  for (const m of s.matchAll(/[「“"『]([^」”"』]{1,200})[」”"』]/g)) {
-    mx = Math.max(mx, m[1].length);
+  for (const pattern of [/「([^」]*)」/g, /“([^”]*)”/g, /"([^"]*)"/g,
+    /『([^』]*)』/g, /‘([^’]*)’/g]) {
+    for (const m of s.matchAll(pattern)) mx = Math.max(mx, [...m[1]].length);
   }
   return mx;
 };
@@ -106,9 +113,7 @@ CHARACTERS.forEach(c => {
       bad(`别名重复：「${a}」同时属于 ${aliasOwner.get(a)} 与 ${c.id}`);
     aliasOwner.set(a, c.id);
   });
-  if (len(c.bio) > LIMITS.bio) bad(`${c.id}: bio ${len(c.bio)} > ${LIMITS.bio}`);
   if (c.tier === "core" && !c.bio) bad(`${c.id}: 详录人物缺 bio`);
-  if (quoteSpan(c.bio) > LIMITS.quoteSpan) bad(`${c.id}: bio 含过长引文`);
   (c.chapters || []).forEach(id => { if (!chIdSet.has(id)) bad(`${c.id}: 章节 ${id} 不存在`); });
   if (c.family && FAMILIES.length && !FAMILIES.some(f => f.id === c.family))
     bad(`${c.id}: family "${c.family}" 不存在`);
@@ -164,8 +169,6 @@ CHAPTERS.forEach(c => {
   chIds.add(c.id);
   if (!chIdSet.has(c.id)) bad(`章节卡 ${c.id}: 不在 structure 中`);
   if (c.tag && !V.chapterTag.includes(c.tag)) bad(`${c.id}: tag 越界 "${c.tag}"`);
-  if (len(c.gist) > LIMITS.gist) bad(`${c.id}: gist ${len(c.gist)} > ${LIMITS.gist}`);
-  if (quoteSpan(c.gist) > LIMITS.quoteSpan) bad(`${c.id}: gist 含过长引文`);
   if (c.place && !placeKeys.has(c.place)) bad(`${c.id}: place "${c.place}" 不存在`);
   (c.chars || []).forEach(x => { if (!charIds.has(x)) bad(`${c.id}: char "${x}" 不存在`); });
   if (c.chars && c.chars.length) withChars++;
@@ -201,9 +204,6 @@ EVENTS.forEach(e => {
       if (e.day > dim) bad(`${e.id}: day ${e.day} 超出 ${e.year || "?"} 年 ${e.month} 月的 ${dim} 天`);
     }
   }
-  if (len(e.summary) > LIMITS.summary) bad(`${e.id}: summary ${len(e.summary)} > ${LIMITS.summary}`);
-  if (e.history && len(e.history) > LIMITS.history) bad(`${e.id}: history 超长`);
-  if (quoteSpan(e.summary) > LIMITS.quoteSpan) bad(`${e.id}: summary 含过长引文`);
   if (e.place && !placeKeys.has(e.place)) bad(`${e.id}: place "${e.place}" 不存在`);
   (e.ch || []).forEach(id => { if (!chIdSet.has(id)) bad(`${e.id}: ch "${id}" 不存在`); });
   (e.chars || []).forEach(x => { if (!charIds.has(x)) bad(`${e.id}: char "${x}" 不存在`); });
@@ -250,7 +250,6 @@ ROUTES.forEach(r => {
 });
 GLOSSARY.forEach(g => {
   if (!V.glossKind.includes(g.kind)) bad(`名物 ${g.id}: kind 越界 "${g.kind}"`);
-  if (len(g.desc) > LIMITS.desc) bad(`名物 ${g.id}: desc 超长`);
   (g.events || []).forEach(id => { if (!evIds.has(id)) bad(`名物 ${g.id}: 事件 "${id}" 不存在`); });
 });
 ok(`主题 ${THEMES.length} / 弧光 ${ARCS.length} / 战役 ${BATTLES.length} / 路线 ${ROUTES.length} / 名物 ${GLOSSARY.length}`);
@@ -263,17 +262,79 @@ NAMES.forEach(n => {
 });
 if (NAMES.length) ok(`${NAMES.length} 条译本对照`);
 
-/* ---------- 9. 版权门禁 ---------- */
-console.log("\n[版权门禁]");
-let violations = 0;
-const scanQuoteField = (obj, where) => {
-  if (obj && Object.prototype.hasOwnProperty.call(obj, "quote")) {
-    bad(`${where}: 出现被禁的 quote 字段`); violations++;
+/* ---------- 时代背景 ---------- */
+console.log("\n[时代背景 background.js]");
+const backgroundStart = problems.length;
+const objectRecord = value => value !== null && typeof value === "object" && !Array.isArray(value);
+const requiredText = (record, fields, where) => {
+  for (const field of fields) {
+    const value = record[field];
+    const limit = field === "title" || field === "period" ? LIMITS.desc : LIMITS.summary;
+    if (typeof value !== "string" || !value.trim()) bad(`${where}.${field}: 必须为非空字符串`);
+    else if (len(value) > limit) bad(`${where}.${field}: ${len(value)} 字 > ${limit}`);
   }
 };
-[...CHARACTERS, ...CHAPTERS, ...EVENTS, ...THEMES, ...ARCS, ...BATTLES, ...GLOSSARY, ...NAMES]
-  .forEach((o, i) => scanQuoteField(o, `记录#${i}`));
-if (!violations) ok("无 quote 字段、无超长引文");
+if (!objectRecord(ERA_BACKGROUND)) {
+  bad("ERA_BACKGROUND: 必须为对象");
+} else {
+  requiredText(ERA_BACKGROUND, ["period", "intro", "framing", "perspective"], "ERA_BACKGROUND");
+  for (const field of ["topics", "timeline", "sources"]) {
+    const rows = ERA_BACKGROUND[field];
+    if (!Array.isArray(rows) || !rows.length) {
+      bad(`ERA_BACKGROUND.${field}: 必须为非空数组`);
+      continue;
+    }
+    let previousYear = 1804;
+    rows.forEach((row, i) => {
+      const where = `ERA_BACKGROUND.${field}[${i}]`;
+      if (!objectRecord(row)) { bad(`${where}: 必须为对象`); return; }
+      requiredText(row, field === "topics" ? ["title", "text", "reading"] :
+        field === "timeline" ? ["title", "text"] : ["title"], where);
+      if (field === "timeline") {
+        if (!Number.isInteger(row.year) || row.year < 1805 || row.year > 1820)
+          bad(`${where}.year: 必须为 1805–1820 范围内的整数`);
+        else if (row.year <= previousYear) bad(`${where}.year: 年份必须严格递增`);
+        previousYear = row.year;
+      }
+      if (field === "sources") {
+        try {
+          if (typeof row.url !== "string" || !/^https:\/\//i.test(row.url) ||
+            new URL(row.url).protocol !== "https:") throw new Error("invalid URL");
+        } catch {
+          bad(`${where}.url: 必须为有效的 HTTPS 网址`);
+        }
+      }
+    });
+  }
+}
+if (problems.length === backgroundStart) ok("ERA_BACKGROUND 必填字段、年表与来源网址通过");
+
+/* ---------- 9. 版权门禁 ---------- */
+console.log("\n[版权门禁]");
+const copyrightStart = problems.length;
+let scannedStrings = 0;
+const scanContent = (value, where, field) => {
+  if (typeof value === "string") {
+    scannedStrings++;
+    if (Object.prototype.hasOwnProperty.call(LIMITS, field) && field !== "quoteSpan" &&
+      len(value) > LIMITS[field]) bad(`${where}: ${len(value)} 字 > ${LIMITS[field]}`);
+    if (quoteSpan(value) > LIMITS.quoteSpan) bad(`${where}: 含过长引文（>${LIMITS.quoteSpan} 字）`);
+  } else if (Array.isArray(value)) {
+    value.forEach((item, i) => scanContent(item, `${where}[${i}]`, field));
+  } else if (value && typeof value === "object") {
+    for (const [key, item] of Object.entries(value)) {
+      if (key === "quote") bad(`${where}.quote: 出现被禁的 quote 字段`);
+      // 地点名等显示文本也可能作为对象键保存。
+      scanContent(key, `${where} 的键`, "");
+      scanContent(item, `${where}.${key}`, key);
+    }
+  }
+};
+for (const [name, value] of Object.entries(S)) {
+  if (name !== "__present") scanContent(value, name, "");
+}
+if (problems.length === copyrightStart)
+  ok(`已递归检查 ${scannedStrings} 个字符串：字段长度合规，无 quote 字段、无超长引文`);
 
 /* ---------- 10. verify 汇总 ---------- */
 console.log("\n[flag:verify 清单]");

@@ -334,14 +334,13 @@ const RelationsView = (() => {
     const active = rows.length;
     const linked = new Set();
     rows.forEach(r => { linked.add(r.rel.a); linked.add(r.rel.b); });
-    // 这里数的是“当年有关系或邻近章节线索”的人数（多数人物 born/died 为空，
-    // 不足以判断在世），所以如实标注，不写成“人尚在世”。
-    const threaded = CHARACTERS.filter(c => charActiveAt(c.id, year) > 0).length;
+    // 详录人物的关系与邻近章节线索；不是在世人数，也不覆盖简录章节索引。
+    const threaded = CHARACTERS.filter(c => c.tier === "core" && charActiveAt(c.id, year) > 0).length;
 
     pane.innerHTML = `
       <h3>此刻的关系 · ${year} 年</h3>
       <div style="font-size:11.5px;color:#8b99a8;line-height:1.9;margin-bottom:12px">
-        ${active} 条关系生效 · ${linked.size} 人在场 · ${threaded} 人有当年线索
+        ${active} 条关系生效 · ${linked.size} 人在场 · 详录人物中 ${threaded} 人有当年线索
       </div>
       ${rows.map(({ rel, state, A, B }, i) => `
         <div class="rel-item" data-i="${i}" style="border-left-color:${KIND_COLOR[rel.kind]}">
@@ -407,7 +406,7 @@ const RelationsView = (() => {
               <b>${p.y}${p.m ? "." + p.m : ""}</b>　${p.state}
               ${ev ? `<div style="font-size:11.5px;color:#8a7020;margin-top:3px">
                 <span style="cursor:pointer;border-bottom:1px dotted #8a7020"
-                  onclick="showEventCard('${ev.id}')">→ ${esc(ev.title)}</span></div>` : ""}
+                  onclick="showEventCard(${jsArg(ev.id)})">→ ${esc(ev.title)}</span></div>` : ""}
             </li>`;
           }).join("")}
         </ul>

@@ -43,6 +43,9 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+// 内联处理器先经过 HTML 属性解析，再经过 JavaScript 解析；两层分别编码。
+function jsArg(value) { return esc(JSON.stringify(value)); }
+
 /* ============ 视图路由 ============ */
 let currentView = "relations";
 function switchView(v) {
@@ -105,20 +108,20 @@ function showCharacterCard(cid) {
       ${rels.map(r => {
         const other = r.a === cid ? r.b : r.a;
         const st = (r.phases || [])[0];
-        return `<span class="rel-chip" onclick="showRelationFrom('${r.a}','${r.b}')">
+        return `<span class="rel-chip" onclick="showRelationFrom(${jsArg(r.a)},${jsArg(r.b)})">
           <span class="rc-kind">${(RelationsView.KIND_LABEL[r.kind] || "")}</span>${esc(charName(other))}
           <span style="color:#5d6b7c;font-size:10.5px">　${st ? r.from.y + "起" : ""}</span>
         </span>`;
       }).join("")}
     </div>` : ""}
     ${evs.length ? `<div class="detail-section"><h4>关联事件（${evs.length}）</h4><ul>
-      ${evs.map(e => `<li><button class="btn-ghost" onclick="showEventCard('${e.id}')">${esc(e.title)} →</button>
+      ${evs.map(e => `<li><button class="btn-ghost" onclick="showEventCard(${jsArg(e.id)})">${esc(e.title)} →</button>
         <span style="color:#8a7020;font-size:11px">　${e.year || ""}</span>
         <div style="font-size:11.5px;margin-top:3px">${esc(e.summary)}</div></li>`).join("")}
     </ul></div>` : ""}
     <div class="detail-section"><h4>出场（${chs.length} 章）</h4>
       <div style="font-size:11.5px;color:#8b99a8;line-height:1.9">
-        ${chs.map(id => `<button class="btn-ghost" onclick="showChapter('${id}')">${esc(id)}</button>`).join(" ")}
+        ${chs.map(id => `<button class="btn-ghost" onclick="showChapter(${jsArg(id)})">${esc(id)}</button>`).join(" ")}
       </div>
     </div>
     <div class="notes">
@@ -126,7 +129,7 @@ function showCharacterCard(cid) {
       <textarea id="noteArea" placeholder="记下你的想法…（自动保存在本机浏览器）"></textarea>
       <div class="note-status" id="noteStatus"></div>
       <div class="note-actions">
-        <button class="btn-gold" onclick="saveNote('char:${cid}')">保存笔记</button>
+        <button class="btn-gold" onclick="saveNote(${jsArg("char:" + cid)})">保存笔记</button>
         <button class="btn-ghost" onclick="exportNotes()">导出全部</button>
       </div>
     </div>
@@ -159,7 +162,7 @@ function showEventCard(eid) {
     <div class="detail-section"><h4>概述</h4><p>${esc(e.summary)}</p></div>
 
     ${(e.chars || []).length ? `<div class="detail-section"><h4>出场人物</h4>
-      ${e.chars.map(c => `<span class="rel-chip" onclick="closeModal();showCharacterCard('${c}')">
+      ${e.chars.map(c => `<span class="rel-chip" onclick="closeModal();showCharacterCard(${jsArg(c)})">
         <span style="color:${factionColor((charById(c) || {}).faction)}">●</span> ${esc(charName(c))}</span>`).join("")}
     </div>` : ""}
 
@@ -172,7 +175,7 @@ function showEventCard(eid) {
     ${(e.theme || []).length ? `<div class="detail-section"><h4>主题线</h4>
       ${e.theme.map(t => {
         const th = THEME_BY_ID[t];
-        return th ? `<span class="rel-chip" onclick="showTheme('${t}')">${esc(th.title)}</span>` : "";
+        return th ? `<span class="rel-chip" onclick="showTheme(${jsArg(t)})">${esc(th.title)}</span>` : "";
       }).join("")}
     </div>` : ""}
 
@@ -188,7 +191,7 @@ function showEventCard(eid) {
     ${e.history ? `<div class="detail-section"><h4>小说 × 史实</h4><p>${esc(e.history)}</p></div>` : ""}
 
     ${linked.length ? `<div class="detail-section"><h4>对应章节</h4><ul>
-      ${linked.map(c => `<li><button class="btn-ghost" onclick="showChapter('${c.id}')">${esc(c.id)} →</button>　<span style="color:#8b99a8">${esc(c.gist || "")}</span></li>`).join("")}
+      ${linked.map(c => `<li><button class="btn-ghost" onclick="showChapter(${jsArg(c.id)})">${esc(c.id)} →</button>　<span style="color:#8b99a8">${esc(c.gist || "")}</span></li>`).join("")}
     </ul></div>` : ""}
 
     <div class="notes">
@@ -196,7 +199,7 @@ function showEventCard(eid) {
       <textarea id="noteArea" placeholder="记下你的想法…（自动保存在本机浏览器）"></textarea>
       <div class="note-status" id="noteStatus"></div>
       <div class="note-actions">
-        <button class="btn-gold" onclick="saveNote('event:${eid}')">保存笔记</button>
+        <button class="btn-gold" onclick="saveNote(${jsArg("event:" + eid)})">保存笔记</button>
         <button class="btn-ghost" onclick="exportNotes()">导出全部</button>
       </div>
     </div>
@@ -214,7 +217,7 @@ function showTheme(tid) {
     <div class="detail-section"><h4>线索</h4><ul>
       ${t.nodes.map(n => {
         const ch = CHAPTER_BY_ID[n.ch];
-        return `<li style="cursor:pointer" onclick="closeModal();showChapter('${n.ch}')">
+        return `<li style="cursor:pointer" onclick="closeModal();showChapter(${jsArg(n.ch)})">
           <b style="color:${roleColor[n.role] || "#c8d2dc"}">${esc(n.role)}</b>
           <span style="color:#8a7020;font-size:11px">　${n.ch}</span>
           <div style="font-size:11.5px;margin-top:3px">${esc(n.note || (ch ? ch.gist : ""))}</div>
@@ -245,7 +248,7 @@ function showChapter(cid) {
     <div class="detail-section"><h4>概述</h4>
       <p>${c.gist ? esc(c.gist) : '<span style="color:#b8552e">概述待补（flag: verify）</span>'}</p></div>
     ${characters.length ? `<div class="detail-section"><h4>本章人物</h4>
-      ${characters.map(x => `<span class="rel-chip" onclick="closeModal();showCharacterCard('${x}')">
+      ${characters.map(x => `<span class="rel-chip" onclick="closeModal();showCharacterCard(${jsArg(x)})">
         <span style="color:${factionColor((charById(x) || {}).faction)}">●</span> ${esc(charName(x))}</span>`).join("")}
     </div>` : ""}
     ${relHere.length ? `<div class="detail-section"><h4>本章的关系变动</h4><ul>
@@ -256,13 +259,13 @@ function showChapter(cid) {
       }).join("")}
     </ul></div>` : ""}
     ${events.length ? `<div class="detail-section"><h4>关联事件（${events.length}）</h4>
-      ${events.map(e => `<p><button class="btn-ghost" onclick="showEventCard('${e.id}')">${esc(e.title)} →</button></p>`).join("")}</div>` : ""}
+      ${events.map(e => `<p><button class="btn-ghost" onclick="showEventCard(${jsArg(e.id)})">${esc(e.title)} →</button></p>`).join("")}</div>` : ""}
     <div class="notes">
       <h4>拆书笔记 · ${cid}</h4>
       <textarea id="noteArea" placeholder="记下你的想法…"></textarea>
       <div class="note-status" id="noteStatus"></div>
       <div class="note-actions">
-        <button class="btn-gold" onclick="saveNote('ch:${cid}')">保存笔记</button>
+        <button class="btn-gold" onclick="saveNote(${jsArg("ch:" + cid)})">保存笔记</button>
         <button class="btn-ghost" onclick="exportNotes()">导出全部</button>
       </div>
     </div>
@@ -413,7 +416,7 @@ document.addEventListener("DOMContentLoaded", () => {
   RelationsView.init();
   switchView("relations");
 
-  // 分享链接：#ch-2-3-14 / #e-austerlitz / #rel-a-b
+  // 分享链接：#ch-2-3-14 / #e-austerlitz / #y1812
   const h = location.hash;
   if (h.startsWith("#ch-")) {
     switchView("read");
@@ -455,7 +458,7 @@ function showCharacterIndex() {
         <h4><span style="color:${factionColor(f)}">●</span> ${esc(FACTION_LABEL[f])}（${byFac[f].length}）</h4>
         <div>
           ${byFac[f].sort((a, b) => (b.chapters || []).length - (a.chapters || []).length)
-            .map(c => `<span class="rel-chip" onclick="closeModal();showCharacterCard('${c.id}')">
+            .map(c => `<span class="rel-chip" onclick="closeModal();showCharacterCard(${jsArg(c.id)})">
               ${esc(c.name)}${c.tier === "core" ? "" : '<span style="color:#5d6b7c;font-size:10px">·简</span>'}
               <span style="color:#5d6b7c;font-size:10px">　${(c.chapters || []).length}章</span>
             </span>`).join("")}
@@ -470,7 +473,7 @@ function showThemesIndex() {
     <h2>主题线</h2>
     <p style="color:#8b99a8">托尔斯泰的议论不按情节走，而按问题走。六条线各自贯穿全书。</p>
     <div class="detail-section"><ul>
-      ${THEMES.map(t => `<li style="cursor:pointer" onclick="showTheme('${t.id}')">
+      ${THEMES.map(t => `<li style="cursor:pointer" onclick="showTheme(${jsArg(t.id)})">
         <b style="color:${t.color}">${esc(t.title)}</b>
         <span style="color:#8a7020;font-size:11px">　${t.nodes.length} 个节点</span>
         <div style="font-size:11.5px;margin-top:3px">${esc(t.question)}</div>
